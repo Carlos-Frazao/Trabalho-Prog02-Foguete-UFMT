@@ -3,4 +3,4 @@ Implementar um sistema de travamento do avião, para que ele não sair da tela.
 Adicionei o titulo do jogo na tela do jogo
 
 
-Adicionar dificuldade e vida 
+Adicionar dificuldade e vida, adicionei foi facilidade
