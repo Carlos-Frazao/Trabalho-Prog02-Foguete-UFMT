@@ -16,10 +16,11 @@ from  pygame.locals import *
 # |       CARLOS                                       |
 # ------------------------------------------------------
 # R: Beleza, sistema adicionado!
+
+
 # ------------------------------------------------------
 # |       FUNÇÕES E CLASSSE                            |
 # ------------------------------------------------------
-
 
 
 # ''''''CLASSE DO JOGADOR''''''
@@ -34,6 +35,7 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.image.load(jogador_imagem).convert_alpha() # Carrega a imagem e transforma em png
         self.image = pygame.transform.scale(self.image, (190,60)) # Tamanho da imagem do jogador
         self.rect =  self.image.get_rect() # Cria o retangulo de colisão
+        self.vidas = 3 # Sistema de vidas adicionado aqui, jogador começa com 3 vidas
 
     # ''''''FUNÇÃO DE MOVIMENTAÇÃO DO JOGADOR''''''
     def update(self, pressed_keys):
@@ -93,14 +95,14 @@ class Enemy(pygame.sprite.Sprite):
                     Enemy.ponto = Enemy.ponto + 5
 
     # ------------------------------------------------------
-    # |                    Coração                          |
+    # |                 SISTEMA DE VIDA                    |
     # ------------------------------------------------------
 class Vida(pygame.sprite.Sprite):
     def __init__(self):
-        super(Vida, self).__init__
+        super(Vida, self).__init__()
         vida_imagem = 'Vida.png' # Imagem do coração
         self.image = pygame.image.load(vida_imagem).convert_alpha() # Carrega a imagem e transforma em png
-        self.image = pygame.transform.scale(self.image, (30, 30)) # Tamanho da imagem do coração
+        self.image = pygame.transform.scale(self.image, (70, 55)) # Tamanho da imagem do coração
         self.rect = self.image.get_rect()
         # Posiciona o coração em uma posição aleatória
         self.rect.x = random.randint(0, tela_largura - 30)
@@ -157,17 +159,21 @@ pygame.display.set_caption("Meu Jogo") # Título da janela
 fundo = pygame.image.load('Fundo.jpg').convert() # Cria o fundo do jogo, com uma imagem tambem
 fundo = pygame.transform.scale(fundo, (tela_largura, tela_altura)) # Deixa imagem do tamanho da tela, ou seja, ocupando toda a tela
 
-
-# ''''''INIMIGOS E SPRITES''''''
+# Eventos para spawn de inimigos e vidas
 ADDENEMY = pygame.USEREVENT + 1 # Adiciona inimigos
 pygame.time.set_timer(ADDENEMY, 500) # Adiciona inimigos a cada 500 milisegundos
+ADDVIDA = pygame.USEREVENT + 2  # Evento para spawn de vidas
+pygame.time.set_timer(ADDVIDA, 10000)  # Spawn a cada 10 segundos
+
+# ''''''INIMIGOS E SPRITES''''''
         
 pygame.init() # Iniciliza o jogo
 player = Player() # player vai ser a classe Player()
 arquivos_save = Arquivo()
 
-# Cria os sprites e adiciona o player
+# Cria os sprites e adiciona o player [TODOS OS SPRITES TEM QUE SER ADICIONADOS AQUI!]
 inimigo = pygame.sprite.Group()
+vidas_group = pygame.sprite.Group() # Grupo de vidas
 all_sprites = pygame.sprite.Group()
 all_sprites.add(player)
 
@@ -192,6 +198,7 @@ while rodando:
 
     player.update(tecla_pressionada) # Atualiza a classe Player(), e leva consigo o parametro da tecla pressionada
     inimigo.update()  # Atualiza a classe Enemy()
+    vidas_group.update()  # Atualiza as vidas
 
     # Verifica se o jogador apertou ESC, fechou a janela ou morreu
     for event in pygame.event.get():
@@ -206,23 +213,49 @@ while rodando:
             novo_inimigo = Enemy()
             inimigo.add(novo_inimigo)
             all_sprites.add(novo_inimigo)
+        elif event.type == ADDVIDA and not eliminado:  # Só spawna vidas se jogador estiver vivo
+            nova_vida = Vida()
+            vidas_group.add(nova_vida)
+            all_sprites.add(nova_vida)
 
     # Verifica se o jogador colidiu com um inimigo
-    if pygame.sprite.spritecollideany(player, inimigo): 
-        player.kill() # Elimina o jogador
-        eliminado = True
-        arquivos_save.LerArquivo()
-        arquivos_save.EscreverArquivo()
+    if pygame.sprite.spritecollideany(player, inimigo) and not eliminado: # Verifica se o jogador colidiu com um inimigo e se ele não foi eliminado
+        player.vidas -= 1 # O jogador perde uma vida
+        if player.vidas <= 0: # Se acabaram as vidas
+            player.kill() # Elimina o jogador
+            eliminado = True
+            arquivos_save.LerArquivo()
+            arquivos_save.EscreverArquivo()
+        else:
+            # Remove todos os inimigos da tela (opcional - reinicia a rodada)
+            for inimigo_sprite in inimigo:
+                inimigo_sprite.kill()
+
+    # Verifica se o jogador colidiu com uma vida
+    vida_coletada = pygame.sprite.spritecollideany(player, vidas_group)
+    if vida_coletada and not eliminado:
+        vida_coletada.kill()  # Remove a vida coletada
+        player.vidas += 1  # Adiciona uma vida
+        if player.vidas > 5:  # Limite máximo de vidas (opcional)
+            player.vidas = 5
 
     # Se o jogador apertar R, ele reinicia o jogo, atualizeis as variaveis para o estado inicial, sendo que o jogador é adicionado novamente, e ficava cheio de avião na tela
     if tecla_pressionada[K_r]:
         eliminado = False
         Enemy.ponto = 0
-        player = Player()
-        all_sprites.add(player)
-        inimigo = pygame.sprite.Group()
-        all_sprites = pygame.sprite.Group()
-        all_sprites.add(player) 
+        player = Player() # Recria o jogador com 3 vidas
+        all_sprites.add(player) # Adiciona o jogador novamente
+        inimigo = pygame.sprite.Group() # Reseta o grupo de inimigos
+        vidas_group = pygame.sprite.Group() # Reseta o grupo de vidas
+        all_sprites = pygame.sprite.Group() # Reseta o grupo de sprites
+        all_sprites.add(player) # Adiciona o jogador novamente
+
+    # Mostrando a vida na tela 
+    if not eliminado: # Só mostra a vida se o jogador estiver vivo
+        # Mostrar vida 
+        texto_vida = fonte.render(f"Vidas: {player.vidas}", False, (0,0,0)) #Converte o numero em string
+        tela.blit(texto_vida, (50, 50)) # Desenha na telas
+
         
     # Garante que só dará pontos se o jogador não foi eliminado
     if eliminado == False: 
