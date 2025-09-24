@@ -21,8 +21,7 @@ from  pygame.locals import *
 # ------------------------------------------------------
 
 
-
-# ''''''CLASSE DO JOGADOR''''''
+# ''''''CLASSE DO JOGADOR ''''''
 class Player(pygame.sprite.Sprite):
 
     # ''''''FUNÇÃO QUE CRIA O JOGADOR''''''
@@ -92,19 +91,6 @@ class Enemy(pygame.sprite.Sprite):
                 else:
                     Enemy.ponto = Enemy.ponto + 5
 
-    # ------------------------------------------------------
-    # |                    Coração                          |
-    # ------------------------------------------------------
-class Vida(pygame.sprite.Sprite):
-    def __init__(self):
-        super(Vida, self).__init__
-        vida_imagem = 'Vida.png' # Imagem do coração
-        self.image = pygame.image.load(vida_imagem).convert_alpha() # Carrega a imagem e transforma em png
-        self.image = pygame.transform.scale(self.image, (30, 30)) # Tamanho da imagem do coração
-        self.rect = self.image.get_rect()
-        # Posiciona o coração em uma posição aleatória
-        self.rect.x = random.randint(0, tela_largura - 30)
-        self.rect.y = random.randint(0, tela_altura - 30)
 
 # ------------------------------------------------------
 # |       SAVE DO JOGO                                 |
@@ -173,7 +159,8 @@ all_sprites.add(player)
 
 # ''''''VARIAVEIS DE CONTROLE''''''
 rodando = True # IMPORTANTE, ELA CONTROLA O LOOP DO JOGO
-eliminado = False # Variavel que verifica se o jogador morreu ou não
+eliminado = False
+estado_game = 'MENU' #Inicializando um menu
 
 # Fonte usada no texto de pontuação e morte
 fonte = pygame.font.SysFont('Calibri MS', 30)
@@ -181,71 +168,108 @@ fonte_morte = pygame.font.SysFont('Calibri MS', 70)
 
 
 # ------------------------------------------------------
+# |       Função para resetar/iniciar o jogo           | OBS: globalizei tudo pq eu não tava conseguindo acessar as variaveis.
+# ------------------------------------------------------
+def reiniciar_jogo():
+    global player, all_sprites, inimigo, estado_jogo
+    Enemy.ponto = 0
+    player = Player()
+    all_sprites = pygame.sprite.Group()
+    inimigo = pygame.sprite.Group()
+    all_sprites.add(player)
+    estado_jogo = 'JOGANDO'
+
+
+# ------------------------------------------------------
 # |       LOOP DO JOGO                                 |
 # ------------------------------------------------------
 
 while rodando:
-        
-    tela.blit(fundo, (0, 0)) # Desenha na tela o fundo do jogo
-        
-    tecla_pressionada = pygame.key.get_pressed() # Pega o evento de pressionar tecla
 
-    player.update(tecla_pressionada) # Atualiza a classe Player(), e leva consigo o parametro da tecla pressionada
-    inimigo.update()  # Atualiza a classe Enemy()
-
-    # Verifica se o jogador apertou ESC, fechou a janela ou morreu
+    # O loop de eventos agora lida com inputs para todos os estados do jogo
     for event in pygame.event.get():
-        if (event.type == KEYDOWN):
-            if (event.key == K_ESCAPE):
-                rodando = False
-            if (event.key == K_c):
-                arquivos_save.LerArquivo()
-        elif (event.type == QUIT):
+        if event.type == QUIT:
             rodando = False
-        elif event.type == ADDENEMY: # Só adiciona inimigos se estiver no estado JOGANDO
+        if event.type == KEYDOWN:
+            if event.key == K_ESCAPE:
+                rodando = False
+            # Se estiver no MENU, a tecla ENTER inicia o jogo
+            if estado_jogo == 'MENU' and event.key == K_RETURN:
+                reiniciar_jogo()
+            # Se estiver na tela de GAME OVER, a tecla 'R' reinicia
+            if estado_jogo == 'GAME_OVER' and event.key == K_r:
+                reiniciar_jogo()
+
+        # Só adiciona inimigos se estiver no estado JOGANDO
+        if event.type == ADDENEMY and estado_jogo == 'JOGANDO':
             novo_inimigo = Enemy()
             inimigo.add(novo_inimigo)
             all_sprites.add(novo_inimigo)
 
-    # Verifica se o jogador colidiu com um inimigo
-    if pygame.sprite.spritecollideany(player, inimigo): 
-        player.kill() # Elimina o jogador
-        eliminado = True
-        arquivos_save.LerArquivo()
-        arquivos_save.EscreverArquivo()
 
-    # Se o jogador apertar R, ele reinicia o jogo, atualizeis as variaveis para o estado inicial, sendo que o jogador é adicionado novamente, e ficava cheio de avião na tela
-    if tecla_pressionada[K_r]:
-        eliminado = False
-        Enemy.ponto = 0
-        player = Player()
-        all_sprites.add(player)
-        inimigo = pygame.sprite.Group()
-        all_sprites = pygame.sprite.Group()
-        all_sprites.add(player) 
-        
-    # Garante que só dará pontos se o jogador não foi eliminado
-    if eliminado == False: 
-        texto_ponto = fonte.render(f"Pontos: {Enemy.ponto}", False, (0,0,0)) #Converte o numero em string
-        tela.blit(texto_ponto, (tela_largura - 200, 50)) # Desenha na tela
-    elif eliminado == True:
+    # Desenha o fundo em todos os estados
+    tela.blit(fundo, (0, 0))
 
-        #Printa na tela os pontos, e o recorde de pontos, lembrando que o recorde ta dentro da classe Arquivo()
-        texto_morte = fonte_morte.render(f"Você perdeu! Seus pontos: {Enemy.ponto}. Seu recorde de pontos: {Arquivo.recorde}", False, (0,0,0))
-        
-        # Informa o jogador que ele pode reiniciar ou sair do jogo
-        texto_reniciar = fonte.render("Pressione R para reiniciar ou ESC para sair", False, (0,0,0))
-        tela.blit(texto_reniciar, (tela_largura / 2 - 200, tela_altura / 2 + 50))
+    # --- Lógica e Desenho baseados no estado do jogo ---
 
-        texto_rect = texto_morte.get_rect(center=(tela_largura / 2, tela_altura / 2)) # Transformei em um retangulo porque assim da pra centralizar certinho o texto na tela
-        tela.blit(texto_morte, texto_rect)
+    #fontes
+    fonte = pygame.font.SysFont('Calibri MS', 30)
+    fonte_morte = pygame.font.SysFont('Calibri MS', 70)
+    fonte_reiniciar = pygame.font.SysFont('Calibri MS', 40)
+    fonte_titulo = pygame.font.SysFont('Calibri MS', 90) # << NOVO: Fonte para o título
 
-    # Desenha todas as entidades na tela
-    for entity in all_sprites: 
-        tela.blit(entity.image, entity.rect)
+    if estado_jogo == 'MENU':
+        # << NOVO: Desenha a tela de Título/Menu
+        fonte_reiniciar = pygame.font.SysFont('Calibri MS', 40)
+        titulo_texto = fonte_titulo.render("Corrida Espacial", True, (255, 255, 255))
+        titulo_rect = titulo_texto.get_rect(center=(tela_largura / 2, tela_altura / 2 - 100))
+        tela.blit(titulo_texto, titulo_rect)
 
-    # Atualiza toda a tela [TEM QUE SER A ULTIMA COISA CHAMADA NO LOOP!]
+        instrucao_texto = fonte_reiniciar.render("Pressione ENTER para começar", True, (200, 200, 200))
+        instrucao_rect = instrucao_texto.get_rect(center=(tela_largura / 2, tela_altura / 2 + 50))
+        tela.blit(instrucao_texto, instrucao_rect)
+
+    elif estado_jogo == 'JOGANDO':
+        # Roda a lógica principal do jogo
+        tecla_pressionada = pygame.key.get_pressed()
+        player.update(tecla_pressionada)
+        inimigo.update()
+
+        # Verifica colisão
+        if pygame.sprite.spritecollideany(player, inimigo):
+            player.kill()
+            arquivos_save.EscreverArquivo() # Salva o recorde
+            estado_jogo = 'GAME_OVER' # Muda para a tela de game over
+
+        # Desenha os sprites do jogo
+        for entity in all_sprites:
+            tela.blit(entity.image, entity.rect)
+
+        # Desenha a pontuação
+        texto_ponto = fonte.render(f"Pontos: {Enemy.ponto}", True, (0,0,0))
+        tela.blit(texto_ponto, (20, 20))
+
+    elif estado_jogo == 'GAME_OVER':
+        # Mostra a tela de "Game Over"
+        texto_morte = fonte_morte.render(f"Você perdeu! Pontos: {Enemy.ponto}", True, (200,0,0))
+        texto_morte_rect = texto_morte.get_rect(center=(tela_largura / 2, tela_altura / 2 - 50))
+        tela.blit(texto_morte, texto_morte_rect)
+
+        texto_recorde = fonte.render(f"Seu recorde: {Arquivo.recorde}", True, (0,0,0))
+        texto_recorde_rect = texto_recorde.get_rect(center=(tela_largura / 2, tela_altura / 2 + 10))
+        tela.blit(texto_recorde, texto_recorde_rect)
+
+        texto_reiniciar = fonte_reiniciar.render("Pressione 'R' para jogar novamente", True, (0, 0, 0))
+        texto_reiniciar_rect = texto_reiniciar.get_rect(center=(tela_largura / 2, tela_altura / 2 + 80))
+        tela.blit(texto_reiniciar, texto_reiniciar_rect)
+
+        # Desenha os inimigos restantes na tela
+        for entity in all_sprites:
+            tela.blit(entity.image, entity.rect)
+
+
+    # Atualiza a tela inteira no final do loop
     frames.tick(60)
-    pygame.display.flip()    
+    pygame.display.flip()
 
 pygame.quit()

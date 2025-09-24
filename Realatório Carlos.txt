@@ -1,0 +1,6 @@
+Vou implementar um botão para quando o jogador perder ele ter uma tecla para reiniciar.
+Implementar um sistema de travamento do avião, para que ele não sair da tela.
+Adicionei o titulo do jogo na tela do jogo
+
+
+Adicionar dificuldade e vida 
